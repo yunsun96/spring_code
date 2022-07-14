@@ -50,25 +50,25 @@ class ExceptionHandlerTests {
 		@Test
 		void localExceptionHandlerMethod() throws Exception {
 			standaloneSetup(new PersonController()).build()
-				.perform(get("/person/Clyde"))
-				.andExpect(status().isOk())
-				.andExpect(forwardedUrl("errorView"));
+					.perform(get("/person/Clyde"))
+					.andExpect(status().isOk())
+					.andExpect(forwardedUrl("errorView"));
 		}
 
 		@Test
 		void globalExceptionHandlerMethod() throws Exception {
 			standaloneSetup(new PersonController()).setControllerAdvice(new GlobalExceptionHandler()).build()
-				.perform(get("/person/Bonnie"))
-				.andExpect(status().isOk())
-				.andExpect(forwardedUrl("globalErrorView"));
+					.perform(get("/person/Bonnie"))
+					.andExpect(status().isOk())
+					.andExpect(forwardedUrl("globalErrorView"));
 		}
 
 		@Test
 		void globalExceptionHandlerMethodUsingClassArgument() throws Exception {
 			standaloneSetup(PersonController.class).setControllerAdvice(GlobalExceptionHandler.class).build()
-				.perform(get("/person/Bonnie"))
-				.andExpect(status().isOk())
-				.andExpect(forwardedUrl("globalErrorView"));
+					.perform(get("/person/Bonnie"))
+					.andExpect(status().isOk())
+					.andExpect(forwardedUrl("globalErrorView"));
 		}
 	}
 
@@ -80,8 +80,7 @@ class ExceptionHandlerTests {
 		String show(@PathVariable String name) {
 			if (name.equals("Clyde")) {
 				throw new IllegalArgumentException("simulated exception");
-			}
-			else if (name.equals("Bonnie")) {
+			} else if (name.equals("Bonnie")) {
 				throw new IllegalStateException("simulated exception");
 			}
 			return "person/show";
@@ -109,48 +108,49 @@ class ExceptionHandlerTests {
 		@Test
 		void noException() throws Exception {
 			standaloneSetup(RestPersonController.class)
-				.setControllerAdvice(RestGlobalExceptionHandler.class, RestPersonControllerExceptionHandler.class).build()
-				.perform(get("/person/Yoda").accept(MediaType.APPLICATION_JSON))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.name").value("Yoda"));
+					.setControllerAdvice(RestGlobalExceptionHandler.class, RestPersonControllerExceptionHandler.class).build()
+					.perform(get("/person/Yoda").accept(MediaType.APPLICATION_JSON))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.name").value("Yoda"));
 		}
 
 		@Test
 		void localExceptionHandlerMethod() throws Exception {
 			standaloneSetup(RestPersonController.class)
-				.setControllerAdvice(RestGlobalExceptionHandler.class, RestPersonControllerExceptionHandler.class).build()
-				.perform(get("/person/Luke").accept(MediaType.APPLICATION_JSON))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.error").value("local - IllegalArgumentException"));
+					.setControllerAdvice(RestGlobalExceptionHandler.class, RestPersonControllerExceptionHandler.class).build()
+					.perform(get("/person/Luke").accept(MediaType.APPLICATION_JSON))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.error").value("local - IllegalArgumentException"));
 		}
 
 		@Test
 		void globalExceptionHandlerMethod() throws Exception {
 			standaloneSetup(RestPersonController.class)
-				.setControllerAdvice(RestGlobalExceptionHandler.class).build()
-				.perform(get("/person/Leia").accept(MediaType.APPLICATION_JSON))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.error").value("global - IllegalStateException"));
+					.setControllerAdvice(RestGlobalExceptionHandler.class).build()
+					.perform(get("/person/Leia").accept(MediaType.APPLICATION_JSON))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.error").value("global - IllegalStateException"));
 		}
 
 		@Test
 		void globalRestPersonControllerExceptionHandlerTakesPrecedenceOverGlobalExceptionHandler() throws Exception {
 			standaloneSetup(RestPersonController.class)
-				.setControllerAdvice(RestGlobalExceptionHandler.class, RestPersonControllerExceptionHandler.class).build()
-				.perform(get("/person/Leia").accept(MediaType.APPLICATION_JSON))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.error").value("globalPersonController - IllegalStateException"));
+					.setControllerAdvice(RestGlobalExceptionHandler.class, RestPersonControllerExceptionHandler.class).build()
+					.perform(get("/person/Leia").accept(MediaType.APPLICATION_JSON))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.error").value("globalPersonController - IllegalStateException"));
 		}
 
-		@Test  // gh-25520
+		@Test
+			// gh-25520
 		void noHandlerFound() throws Exception {
 			standaloneSetup(RestPersonController.class)
-				.setControllerAdvice(RestGlobalExceptionHandler.class, RestPersonControllerExceptionHandler.class)
-				.addDispatcherServletCustomizer(dispatcherServlet -> dispatcherServlet.setThrowExceptionIfNoHandlerFound(true))
-				.build()
-				.perform(get("/bogus").accept(MediaType.APPLICATION_JSON))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.error").value("global - NoHandlerFoundException"));
+					.setControllerAdvice(RestGlobalExceptionHandler.class, RestPersonControllerExceptionHandler.class)
+					.addDispatcherServletCustomizer(dispatcherServlet -> dispatcherServlet.setThrowExceptionIfNoHandlerFound(true))
+					.build()
+					.perform(get("/bogus").accept(MediaType.APPLICATION_JSON))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.error").value("global - NoHandlerFoundException"));
 		}
 	}
 
@@ -192,7 +192,7 @@ class ExceptionHandlerTests {
 
 		@ExceptionHandler
 		Error handleException(Throwable exception) {
-			return new Error( "global - " + exception.getClass().getSimpleName());
+			return new Error("global - " + exception.getClass().getSimpleName());
 		}
 	}
 

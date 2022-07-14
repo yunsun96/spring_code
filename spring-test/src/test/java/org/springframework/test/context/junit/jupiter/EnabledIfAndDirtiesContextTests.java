@@ -37,8 +37,8 @@ import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
  * {@link SpringExtension} in a JUnit Jupiter environment.
  *
  * @author Sam Brannen
- * @since 5.2.14
  * @see DisabledIfAndDirtiesContextTests
+ * @since 5.2.14
  */
 class EnabledIfAndDirtiesContextTests {
 

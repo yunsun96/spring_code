@@ -116,14 +116,22 @@ class ConfigurationClassEnhancer {
 
 	/**
 	 * Creates a new CGLIB {@link Enhancer} instance.
+	 *  Enhancer cglib代理对象，通过继承实现的
 	 */
 	private Enhancer newEnhancer(Class<?> configSuperClass, @Nullable ClassLoader classLoader) {
 		Enhancer enhancer = new Enhancer();
+		//增强父类
 		enhancer.setSuperclass(configSuperClass);
+		// 增强接口 ，便于判断，表示一个类被增强了
 		enhancer.setInterfaces(new Class<?>[] {EnhancedConfiguration.class});
 		enhancer.setUseFactory(false);
 		enhancer.setNamingPolicy(SpringNamingPolicy.INSTANCE);
+		//声明一个public 类型的 $$beanFactory 对象，当调用this的时候可以直接通过beanFactory获取，保证单例
+		// 也就是一个策略，让cglib对象添加一个beanFactory对象
+		//同时基于接口EnhancedConfiguration 的父接口BeanFactoryAware 的setBeanFactory方法为当前对象设置context的beanFactory
+		// 这样一来就不用通过构造方法获取对象，而通过拦截this方法从beanFactory中获取对象
 		enhancer.setStrategy(new BeanFactoryAwareGeneratorStrategy(classLoader));
+		//过滤方法，不能每次都去new
 		enhancer.setCallbackFilter(CALLBACK_FILTER);
 		enhancer.setCallbackTypes(CALLBACK_FILTER.getCallbackTypes());
 		return enhancer;
@@ -216,6 +224,7 @@ class ConfigurationClassEnhancer {
 
 		@Override
 		protected ClassGenerator transform(ClassGenerator cg) throws Exception {
+			// 声明一个public 类型的 $$beanFactory 对象，当调用this的时候可以直接通过beanFactory获取，保证单例
 			ClassEmitterTransformer transformer = new ClassEmitterTransformer() {
 				@Override
 				public void end_class() {
@@ -284,6 +293,7 @@ class ConfigurationClassEnhancer {
 		public Object intercept(Object enhancedConfigInstance, Method beanMethod, Object[] beanMethodArgs,
 					MethodProxy cglibMethodProxy) throws Throwable {
 
+			// 拦截方法，获取一个工厂
 			ConfigurableBeanFactory beanFactory = getBeanFactory(enhancedConfigInstance);
 			String beanName = BeanAnnotationHelper.determineBeanNameFor(beanMethod);
 
@@ -314,6 +324,8 @@ class ConfigurationClassEnhancer {
 				}
 			}
 
+			//判断配置类中的bean方法是否已经执行过了
+			// 这里是一个代理类，如果没有处理过则调用继承的父类的方法，例如Appconfig的代理对象里面虽有有indexImpl 方法，但是里面方法只是拦截方法，还是要调用父类config类的imol方法
 			if (isCurrentlyInvokedFactoryMethod(beanMethod)) {
 				// The factory is calling the bean method in order to instantiate and register the bean
 				// (i.e. via a getBean() call) -> invoke the super implementation of the method to actually

@@ -32,6 +32,7 @@ public interface ImportAware extends Aware {
 
 	/**
 	 * Set the annotation metadata of the importing @{@code Configuration} class.
+	 * // 通过注释可以得知，能得到所有元信息上的注解信息，redis就是通过这个获取配置信息
 	 */
 	void setImportMetadata(AnnotationMetadata importMetadata);
 

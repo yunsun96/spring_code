@@ -19,9 +19,11 @@ package org.springframework.beans.factory.config;
 import org.springframework.beans.BeansException;
 
 /**
- * Factory hook that allows for custom modification of an application context's
- * bean definitions, adapting the bean property values of the context's underlying
- * bean factory.
+ * bean的扩展点之一   spring的初始化流程  --首先创建工厂，然后装载基本的配置类，再通过spring自己的配置类和程序员 添加的配置类来扫描class解析成bean的初始属性，
+ * 在扫描出来实例化之前，可以通过这个类来进行bean的修改
+ * spring允许BeanFactoryPostProcessor在容器实例化其他bean之前读取元数据并根据需要修改，例如可以把bean的scope从singleton改为prototype
+ * 同时配置多个BeanFactoryPostProcessor可以通过order属性来控制它们的执行顺序
+ * BeanFactoryPostProcessor在spring容器加载了bean文件之后，在bean实例化之前执行，比BeanPostProcessor先执行
  *
  * <p>Useful for custom config files targeted at system administrators that
  * override bean properties configured in the application context. See

@@ -50,12 +50,17 @@ public class DefaultAopProxyFactory implements AopProxyFactory, Serializable {
 
 	@Override
 	public AopProxy createAopProxy(AdvisedSupport config) throws AopConfigException {
+		//第一个配置不知道哪里配的，默认应该是false，XML可以配置，注解方式不行
+		// 第二个条件可以通过 @EnableAspectJAutoProxy(proxyTargetClass = ) 配置，默认false
+		// 第三个 不知道，spring 默认的是JDK代理，但是spring boot默认的代理是cglib  isProxyTargetClass 和 hasNoUserSuppliedProxyInterfaces 都是true
+		// cglib 是通过继承实现的，jdk动态代理是invokeHandle接口实现
 		if (config.isOptimize() || config.isProxyTargetClass() || hasNoUserSuppliedProxyInterfaces(config)) {
 			Class<?> targetClass = config.getTargetClass();
 			if (targetClass == null) {
 				throw new AopConfigException("TargetSource cannot determine target class: " +
 						"Either an interface or a target is required for proxy creation.");
 			}
+			// 这里判断目前没发现有用，因为接口不知道怎么能注入到context里面去
 			if (targetClass.isInterface() || Proxy.isProxyClass(targetClass)) {
 				return new JdkDynamicAopProxy(config);
 			}

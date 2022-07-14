@@ -39,11 +39,6 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.ClassUtils;
 
 /**
- * Utility class that allows for convenient registration of common
- * {@link org.springframework.beans.factory.config.BeanPostProcessor} and
- * {@link org.springframework.beans.factory.config.BeanFactoryPostProcessor}
- * definitions for annotation-based configuration. Also registers a common
- * {@link org.springframework.beans.factory.support.AutowireCandidateResolver}.
  *
  * @author Mark Fisher
  * @author Juergen Hoeller
@@ -55,7 +50,7 @@ import org.springframework.util.ClassUtils;
  * @see ConfigurationClassPostProcessor
  * @see CommonAnnotationBeanPostProcessor
  * @see org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor
- * @see org.springframework.orm.jpa.support.PersistenceAnnotationBeanPostProcessor
+ * @see org.springframework.orm.jpa.support
  */
 public abstract class AnnotationConfigUtils {
 
@@ -147,26 +142,37 @@ public abstract class AnnotationConfigUtils {
 	 */
 	public static Set<BeanDefinitionHolder> registerAnnotationConfigProcessors(
 			BeanDefinitionRegistry registry, @Nullable Object source) {
-
+		//创建一个工厂
 		DefaultListableBeanFactory beanFactory = unwrapDefaultListableBeanFactory(registry);
 		if (beanFactory != null) {
+			//如果工厂实例化了
+			// 设置排序规则
 			if (!(beanFactory.getDependencyComparator() instanceof AnnotationAwareOrderComparator)) {
+				//AnnotationAwareOrderComparator 主要解析order注解和Priority 注解
 				beanFactory.setDependencyComparator(AnnotationAwareOrderComparator.INSTANCE);
 			}
 			if (!(beanFactory.getAutowireCandidateResolver() instanceof ContextAnnotationAutowireCandidateResolver)) {
+				//ContextAnnotationAutowireCandidateResolver设置延时加载
 				beanFactory.setAutowireCandidateResolver(new ContextAnnotationAutowireCandidateResolver());
 			}
 		}
-
+		//BeanDefinitionHolder里面存储了BD和BDname，bdmap的另外的集合，方便传参
 		Set<BeanDefinitionHolder> beanDefs = new LinkedHashSet<>(8);
-
+		//注册bd，理解bean的类型   //CONFIGURATION_ANNOTATION_PROCESSOR_BEAN_NAME 配置类
 		if (!registry.containsBeanDefinition(CONFIGURATION_ANNOTATION_PROCESSOR_BEAN_NAME)) {
+			//ConfigurationClassPostProcessor的类型是BeanDefinitionRegistryPostProcessor
+			//而BeanDefinitionRegistryPostProcessor 继承 BeanFactoryPostProcessor接口
+			// 这里注册的这个Bean，在后续的  refresh 方法的 org.springframework.context.support.AbstractApplicationContext.invokeBeanFactoryPostProcessors#invokeBeanFactoryPostProcessors  过程中，会用来扫描
 			RootBeanDefinition def = new RootBeanDefinition(ConfigurationClassPostProcessor.class);
 			def.setSource(source);
+
+			//往BeanDefinitionMap里面注册一个BD.还放了一个 internalConfigurationAnnotationProcessor 到map里面
 			beanDefs.add(registerPostProcessor(registry, def, CONFIGURATION_ANNOTATION_PROCESSOR_BEAN_NAME));
 		}
 
 		if (!registry.containsBeanDefinition(AUTOWIRED_ANNOTATION_PROCESSOR_BEAN_NAME)) {
+			//AutowiredAnnotationBeanPostProcessor 实现了  MergedBeanDefinitionPostProcessor
+			// 而MergedBeanDefinitionPostProcessor 实现了  BeanPostProcessor
 			RootBeanDefinition def = new RootBeanDefinition(AutowiredAnnotationBeanPostProcessor.class);
 			def.setSource(source);
 			beanDefs.add(registerPostProcessor(registry, def, AUTOWIRED_ANNOTATION_PROCESSOR_BEAN_NAME));
@@ -230,6 +236,10 @@ public abstract class AnnotationConfigUtils {
 		}
 	}
 
+	/**
+	 *  检查常用注解
+	 * @param abd
+	 */
 	public static void processCommonDefinitionAnnotations(AnnotatedBeanDefinition abd) {
 		processCommonDefinitionAnnotations(abd, abd.getMetadata());
 	}

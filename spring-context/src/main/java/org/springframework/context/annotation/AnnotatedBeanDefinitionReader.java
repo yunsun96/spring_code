@@ -58,14 +58,12 @@ public class AnnotatedBeanDefinitionReader {
 
 
 	/**
-	 * Create a new {@code AnnotatedBeanDefinitionReader} for the given registry.
-	 * <p>If the registry is {@link EnvironmentCapable}, e.g. is an {@code ApplicationContext},
-	 * the {@link Environment} will be inherited, otherwise a new
-	 * {@link StandardEnvironment} will be created and used.
-	 * @param registry the {@code BeanFactory} to load bean definitions into,
-	 * in the form of a {@code BeanDefinitionRegistry}
-	 * @see #AnnotatedBeanDefinitionReader(BeanDefinitionRegistry, Environment)
-	 * @see #setEnvironment(Environment)
+	 * 这里的BeanDefinitionRegistry 是通过AnnotationConfigApplicationContext的构造方法中传进来的this（）
+	 * 由此可见AnnotationConfigApplicationContext 是一个BeanDefinitionRegistry的类，
+	 * 何以证明
+	 * AnnotationConfigApplicationContext 的继承关系 extends GenericApplicationContext impl BeanDefinitionRegistry
+	 * 那么BeanDefinitionRegistry 有什么作用
+	 * BeanDefinitionRegistry 顾名思义就是BeanDefinition的注册器
 	 */
 	public AnnotatedBeanDefinitionReader(BeanDefinitionRegistry registry) {
 		this(registry, getOrCreateEnvironment(registry));
@@ -139,9 +137,7 @@ public class AnnotatedBeanDefinitionReader {
 	}
 
 	/**
-	 * Register a bean from the given bean class, deriving its metadata from
-	 * class-declared annotations.
-	 * @param beanClass the class of the bean
+	 * 空壳方法
 	 */
 	public void registerBean(Class<?> beanClass) {
 		doRegisterBean(beanClass, null, null, null, null);
@@ -235,41 +231,45 @@ public class AnnotatedBeanDefinitionReader {
 
 	/**
 	 * Register a bean from the given bean class, deriving its metadata from
-	 * class-declared annotations.
-	 * @param beanClass the class of the bean
-	 * @param name an explicit name for the bean
-	 * @param qualifiers specific qualifier annotations to consider, if any,
-	 * in addition to qualifiers at the bean class level
-	 * @param supplier a callback for creating an instance of the bean
-	 * (may be {@code null})
-	 * @param customizers one or more callbacks for customizing the factory's
-	 * {@link BeanDefinition}, e.g. setting a lazy-init or primary flag
 	 * @since 5.0
 	 */
 	private <T> void doRegisterBean(Class<T> beanClass, @Nullable String name,
 			@Nullable Class<? extends Annotation>[] qualifiers, @Nullable Supplier<T> supplier,
 			@Nullable BeanDefinitionCustomizer[] customizers) {
-
+		/**
+		 * 为指定的bean创建一个AnnotatedGenericBeanDefinition
+		 * 这个AnnotatedGenericBeanDefinition相当于beanDefinition的扩展，还存储了额外的一些类信息
+		 */
 		AnnotatedGenericBeanDefinition abd = new AnnotatedGenericBeanDefinition(beanClass);
+		//判断这个类是否需要跳过
 		if (this.conditionEvaluator.shouldSkip(abd.getMetadata())) {
 			return;
 		}
-
+		//不知道干什么的
 		abd.setInstanceSupplier(supplier);
+		//解析作用域
 		ScopeMetadata scopeMetadata = this.scopeMetadataResolver.resolveScopeMetadata(abd);
-		abd.setScope(scopeMetadata.getScopeName());
-		String beanName = (name != null ? name : this.beanNameGenerator.generateBeanName(abd, this.registry));
 
+		abd.setScope(scopeMetadata.getScopeName());
+		//生成类的名字
+		String beanName = (name != null ? name : this.beanNameGenerator.generateBeanName(abd, this.registry));
+		//对基本注解进行bean的属性设置  scope等
 		AnnotationConfigUtils.processCommonDefinitionAnnotations(abd);
+		/**
+		 * 这里需要注意的是qualifiers注解是一个数组，里面可能存在一切注解
+		 */
 		if (qualifiers != null) {
 			for (Class<? extends Annotation> qualifier : qualifiers) {
+				//看是否配置了Primary，那么就设为首要
 				if (Primary.class == qualifier) {
 					abd.setPrimary(true);
 				}
+				//懒加载
 				else if (Lazy.class == qualifier) {
 					abd.setLazyInit(true);
 				}
 				else {
+					//如果使用了primary和lazy之外的注解，那么该bean会通过名称自动装配，暂时不知道作用
 					abd.addQualifier(new AutowireCandidateQualifier(qualifier));
 				}
 			}
@@ -279,9 +279,15 @@ public class AnnotatedBeanDefinitionReader {
 				customizer.customize(abd);
 			}
 		}
-
+		//这个beanDefinition也是一个数据结构，就是用来组装传参的
 		BeanDefinitionHolder definitionHolder = new BeanDefinitionHolder(abd, beanName);
+
+
 		definitionHolder = AnnotationConfigUtils.applyScopedProxyMode(scopeMetadata, definitionHolder, this.registry);
+
+		/**
+		 * 一个register，通过上述数据结构，BeanDefinitionRegistry，把传进来的bean通过register的registerBeanDefinition 方法注册进去
+		 */
 		BeanDefinitionReaderUtils.registerBeanDefinition(definitionHolder, this.registry);
 	}
 

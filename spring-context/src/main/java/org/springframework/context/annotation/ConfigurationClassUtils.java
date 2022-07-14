@@ -91,6 +91,7 @@ abstract class ConfigurationClassUtils {
 		}
 
 		AnnotationMetadata metadata;
+		// 判断是否加了注解的类  （因为注解的类在转换成bd的时候要通过new 或者扫描 然后转换成一个bd）例如Appconfig就是通过new AnnotatedGenericBeanDefinition 生成
 		if (beanDef instanceof AnnotatedBeanDefinition &&
 				className.equals(((AnnotatedBeanDefinition) beanDef).getMetadata().getClassName())) {
 			// Can reuse the pre-parsed metadata from the given BeanDefinition...
@@ -121,11 +122,20 @@ abstract class ConfigurationClassUtils {
 				return false;
 			}
 		}
-
+		// 老版本通过isFullConfigurationCandidate 方法封装拿，但是没有判断是否是代理类
 		Map<String, Object> config = metadata.getAnnotationAttributes(Configuration.class.getName());
+		// 如果加了Configuration注解 则full状态会被置为true，如果包含这个注解则不会走下面判断，下面的注解放到后面解析bean的时候处理
+		// configuration注解不加，只加ComponentScan 也能扫描类的原因就是下面注解的原因，但是不加会有一个问题 beanPostProcessor扩展类不会执行了
 		if (config != null && !Boolean.FALSE.equals(config.get("proxyBeanMethods"))) {
 			beanDef.setAttribute(CONFIGURATION_CLASS_ATTRIBUTE, CONFIGURATION_CLASS_FULL);
 		}
+		//判断是否包含四种常用注解/**
+		//		 * candidateIndicators.add(Component.class.getName());
+		//		 * 		candidateIndicators.add(ComponentScan.class.getName());
+		//		 * 		candidateIndicators.add(Import.class.getName());
+		//		 * 		candidateIndicators.add(ImportResource.class.getName());
+		//		 */
+		//否则spring会认为是一个不全的注解类
 		else if (config != null || isConfigurationCandidate(metadata)) {
 			beanDef.setAttribute(CONFIGURATION_CLASS_ATTRIBUTE, CONFIGURATION_CLASS_LITE);
 		}
@@ -156,6 +166,13 @@ abstract class ConfigurationClassUtils {
 		}
 
 		// Any of the typical annotations found?
+		/**
+		 * 判断是否包含这四种类型的注解
+		 * candidateIndicators.add(Component.class.getName());
+		 * 		candidateIndicators.add(ComponentScan.class.getName());
+		 * 		candidateIndicators.add(Import.class.getName());
+		 * 		candidateIndicators.add(ImportResource.class.getName());
+		 */
 		for (String indicator : candidateIndicators) {
 			if (metadata.isAnnotated(indicator)) {
 				return true;
