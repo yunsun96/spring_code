@@ -243,12 +243,28 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			String name, @Nullable Class<T> requiredType, @Nullable Object[] args, boolean typeCheckOnly)
 			throws BeansException {
 
+		/**
+		 * 这里name获取beanName的原因是，我们获取bean的时候可以通过&符号获取factoryBean本身，而非实现factoryBean的类
+		 * 在beanFactory中，factoryBean的实现类和其他方式是一样的，beanName中没有&字符，将&移出这样才能获取factoryBean的实例
+		 * BeanFactoryUtils.transformedBeanName(name) 移出开头的&
+		 * bean 和factoryBean的区别就是factory前面有一个&
+		 * 如果手动改了名字加了&也是在这里返回成没有&的beanName
+		 */
 		String beanName = transformedBeanName(name);
 		Object bean;
 
 		// Eagerly check singleton cache for manually registered singletons.
 		// 获取单例bean，一般spirng的bean已经实例化了，但是普通bean还没有
+		/**
+		 *  这个方法在初始化的时候调用，在getBean的时候也会调用，目前还没有初始化bean，为什么要提前调用一次无效方法
+		 *  为什么要调用这个方法，因为这个是个公共方法，在运行时也可能调用
+		 *  annotationConfigApplicationContext.getBean 容器获取的时候lazy 注解的对象可能还没有初始化，那么就在这里可以初始化
+		 */
 		Object sharedInstance = getSingleton(beanName);
+		// 第一次肯定是null，spring会有几个get调用点，第一个是上面初始化对象的时候，get拿不到
+		// 然后就会创建 ，调用下面的getSingleton 方法 DefaultSingletonBeanRegistry.getSingleton 在这个方法之前会放置一个参数singletonsCurrentlylnCreation 表明正在被创建
+		//  然后创建调用函数方法的createBean创建bean，创建完了设置属性的时候再次调用  getSingleton 方法拿注入的属性，如果是自动注入，那么这里拿出来的属性可能还是空，
+		//  如果是空，那么当前正在被创建是true，就会拿到
 		if (sharedInstance != null && args == null) {
 			if (logger.isTraceEnabled()) {
 				if (isSingletonCurrentlyInCreation(beanName)) {
@@ -292,7 +308,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				}
 			}
 
+			// 是否已经创建过了
 			if (!typeCheckOnly) {
+				//已经创建 过了放到一个set里面，下次不在创建
 				markBeanAsCreated(beanName);
 			}
 

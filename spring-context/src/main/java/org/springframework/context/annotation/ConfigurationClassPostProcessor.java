@@ -349,6 +349,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 						this.importBeanNameGenerator, parser.getImportRegistry());
 			}
 			// 把扫描出来的bean添加到factory中  configClasses包含import类以及import类上类中的注解类和普通bean
+			// 这里还会扫描@Bean注解是否有static，有的话就会把bean方法作为factory方法执行生成bean
 			this.reader.loadBeanDefinitions(configClasses);
 			alreadyParsed.addAll(configClasses);
 

@@ -40,6 +40,7 @@ import org.springframework.util.ObjectUtils;
  * @author Juergen Hoeller
  * @since 09.11.2003
  * @see BeanDefinition#getConstructorArgumentValues
+ *  存放参数对应下标和参数
  */
 public class ConstructorArgumentValues {
 

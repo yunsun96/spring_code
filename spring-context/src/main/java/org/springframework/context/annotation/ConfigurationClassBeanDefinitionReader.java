@@ -144,6 +144,9 @@ class ConfigurationClassBeanDefinitionReader {
 			registerBeanDefinitionForImportedConfigurationClass(configClass);
 		}
 		//处理方法 ,里面判断cglib代理的类里面是否存在静态方法，存在则静态方法会再执行一遍，不会被拦截
+		// 这就是在配置类中，如果加了bean注解的方法是static，那么会设置一个工厂方法为当前方法
+		// 那么在实例化bean的时候，就会出现一个情况，应该要单例实现的bean会有工厂方法通过工厂方法创建
+		// org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance  在实例化bean的时候就会走工厂方法
 		for (BeanMethod beanMethod : configClass.getBeanMethods()) {
 			loadBeanDefinitionsForBeanMethod(beanMethod);
 		}

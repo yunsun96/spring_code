@@ -75,12 +75,15 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 
 
 	/** Cache of singleton objects: bean name to bean instance. */
+	// 用于存放完全初始化好的 bean从该缓存取出来，可以直接用
 	private final Map<String, Object> singletonObjects = new ConcurrentHashMap<>(256);
 
 	/** Cache of singleton factories: bean name to ObjectFactory. */
+	// 存放bean工厂对象解决循环一来
 	private final Map<String, ObjectFactory<?>> singletonFactories = new HashMap<>(16);
 
 	/** Cache of early singleton objects: bean name to bean instance. */
+	// 存放原始的bean对象，用于解决循环依赖， 存到里面的对象还没填充属性
 	private final Map<String, Object> earlySingletonObjects = new ConcurrentHashMap<>(16);
 
 	/** Set of registered singletons, containing the bean names in registration order. */
@@ -155,8 +158,11 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 		Assert.notNull(singletonFactory, "Singleton factory must not be null");
 		synchronized (this.singletonObjects) {
 			if (!this.singletonObjects.containsKey(beanName)) {
+				// 三级缓存 单例缓存，生成的所有bean开始都会放进去
 				this.singletonFactories.put(beanName, singletonFactory);
+				// 二级缓存中remove
 				this.earlySingletonObjects.remove(beanName);
+				// bean注册器，存放名称
 				this.registeredSingletons.add(beanName);
 			}
 		}
@@ -179,7 +185,9 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	@Nullable
 	protected Object getSingleton(String beanName, boolean allowEarlyReference) {
 		// Quick check for existing instance without full singleton lock
+		// 从一级缓存中获取，初始化的时候一般都是空的
 		Object singletonObject = this.singletonObjects.get(beanName);
+		// 这里spirng认为还没有到创建的时候。所以返回了空
 		if (singletonObject == null && isSingletonCurrentlyInCreation(beanName)) {
 			singletonObject = this.earlySingletonObjects.get(beanName);
 			if (singletonObject == null && allowEarlyReference) {
@@ -226,6 +234,11 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 					logger.debug("Creating shared instance of singleton bean '" + beanName + "'");
 				}
 				// 创建单例对象前回调，不知道具体作用
+				/**
+				 *  这里就是上面的getSingleton 方法判断是否正在创建的前提条件，所以上面的是否正在创建一定为false，只有这里设置了
+				 *  才会为true
+				 *  这里设置正在创建标识，后续getSingleton 才会进入判断
+				 */
 				beforeSingletonCreation(beanName);
 				boolean newSingleton = false;
 				boolean recordSuppressedExceptions = (this.suppressedExceptions == null);
@@ -258,6 +271,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 					if (recordSuppressedExceptions) {
 						this.suppressedExceptions = null;
 					}
+					// 创建完成之后去掉正在创建的标识
 					afterSingletonCreation(beanName);
 				}
 				if (newSingleton) {

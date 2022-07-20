@@ -126,20 +126,31 @@ class ConstructorResolver {
 	public BeanWrapper autowireConstructor(String beanName, RootBeanDefinition mbd,
 			@Nullable Constructor<?>[] chosenCtors, @Nullable Object[] explicitArgs) {
 
+		// 创建一个 BeanWrapperImpl对象
+		// 前面返回的 BeanWrapper，其实就是这个 BeanWrapperImpl
+		//因为 BeanWrapper是个接口
 		BeanWrapperImpl bw = new BeanWrapperImpl();
 		this.beanFactory.initBeanWrapper(bw);
 
+		// 在这里spring要使用一个非默认的构造方法来创建bean
 		Constructor<?> constructorToUse = null;
+		// 这是构造方法的值，不是参数
 		ArgumentsHolder argsHolderToUse = null;
 		Object[] argsToUse = null;
+
+		// 确定参数列表
+		// argsToUse 有两种方法设置
 
 		if (explicitArgs != null) {
 			argsToUse = explicitArgs;
 		}
 		else {
+			// 参数处理的值
 			Object[] argsToResolve = null;
+
 			synchronized (mbd.constructorArgumentLock) {
 				constructorToUse = (Constructor<?>) mbd.resolvedConstructorOrFactoryMethod;
+				// 获取需要处理的构造方法，肯定没有
 				if (constructorToUse != null && mbd.constructorArgumentsResolved) {
 					// Found a cached constructor...
 					argsToUse = mbd.resolvedConstructorArguments;
@@ -153,8 +164,10 @@ class ConstructorResolver {
 			}
 		}
 
+		// 进入这里，构造方法为空
 		if (constructorToUse == null || argsToUse == null) {
 			// Take specified constructors, if any.
+			// 这里拿到所有的构造方法
 			Constructor<?>[] candidates = chosenCtors;
 			if (candidates == null) {
 				Class<?> beanClass = mbd.getBeanClass();
@@ -183,28 +196,48 @@ class ConstructorResolver {
 			}
 
 			// Need to resolve the constructor.
+			// 判断构造方法是否为空，是否根据构造方法自动注入
 			boolean autowiring = (chosenCtors != null ||
 					mbd.getResolvedAutowireMode() == AutowireCapableBeanFactory.AUTOWIRE_CONSTRUCTOR);
 			ConstructorArgumentValues resolvedValues = null;
 
+			// 定义最小参数的值
+			// 如果你给构造方法定义了具体的参数个数
+			// 那么这些值的个数就是构造方法的参数个数
 			int minNrOfArgs;
 			if (explicitArgs != null) {
 				minNrOfArgs = explicitArgs.length;
 			}
 			else {
+				// 创建一个构造方法的参数对象 ，如果为空就创建，不为空就从参数获取
 				ConstructorArgumentValues cargs = mbd.getConstructorArgumentValues();
+				// 定义一个构造方法的参数对象，存储参数值和对应的下标
 				resolvedValues = new ConstructorArgumentValues();
+				/**
+				 *  确定构造方法的参数个数
+				 */
 				minNrOfArgs = resolveConstructorArguments(beanName, mbd, bw, cargs, resolvedValues);
 			}
 
+			// 排序
+			/**
+			 *  根据访问权限public最前面，参数个数排序 最多的排前面
+			 */
 			AutowireUtils.sortConstructors(candidates);
+			// 定义一个差异变量
 			int minTypeDiffWeight = Integer.MAX_VALUE;
+			// 摸棱两可的构造方法，说明最后找到多个符合条件的构造方法
 			Set<Constructor<?>> ambiguousConstructors = null;
 			LinkedList<UnsatisfiedDependencyException> causes = null;
 
+			// 循环所有的构造方法
 			for (Constructor<?> candidate : candidates) {
 				int parameterCount = candidate.getParameterCount();
 
+				// 这里为什么要这么判断，首先第一次循环后 constructorToUse 肯定被赋值了，那么就要看参数是否合适
+				// 我们传参的时候，肯定是定义好了你需要几个参数，通过循环去生成的，肯定参数越多越精确，那么排序后第一次的肯定是参数最多的
+				// 那么为什么要判断参数个数呢？因为可能存在参数相同但是参数类型不同的，那么就需要更加精确的判断
+				// 如果参数都少了，那么肯定最精确的是唯一的
 				if (constructorToUse != null && argsToUse != null && argsToUse.length > parameterCount) {
 					// Already found greedy constructor that can be satisfied ->
 					// do not look any further, there are only less greedy constructors left.
@@ -218,6 +251,7 @@ class ConstructorResolver {
 				Class<?>[] paramTypes = candidate.getParameterTypes();
 				if (resolvedValues != null) {
 					try {
+						// 判断是否加了@ConstructorProperties 注解
 						String[] paramNames = ConstructorPropertiesChecker.evaluate(candidate, parameterCount);
 						if (paramNames == null) {
 							ParameterNameDiscoverer pnd = this.beanFactory.getParameterNameDiscoverer();
@@ -248,9 +282,11 @@ class ConstructorResolver {
 					argsHolder = new ArgumentsHolder(explicitArgs);
 				}
 
+				// 定义差异值
 				int typeDiffWeight = (mbd.isLenientConstructorResolution() ?
 						argsHolder.getTypeDifferenceWeight(paramTypes) : argsHolder.getAssignabilityWeight(paramTypes));
 				// Choose this constructor if it represents the closest match.
+				// 第一遍肯定小于，进入后被赋了默认值
 				if (typeDiffWeight < minTypeDiffWeight) {
 					constructorToUse = candidate;
 					argsHolderToUse = argsHolder;
@@ -267,6 +303,7 @@ class ConstructorResolver {
 				}
 			}
 
+			//循环完之后没有找到合适的构造方法
 			if (constructorToUse == null) {
 				if (causes != null) {
 					UnsatisfiedDependencyException ex = causes.removeLast();
@@ -279,6 +316,7 @@ class ConstructorResolver {
 						"Could not resolve matching constructor on bean class [" + mbd.getBeanClassName() + "] " +
 						"(hint: specify index/type/name arguments for simple parameters to avoid type ambiguities)");
 			}
+			// 如果找到两个相同的构造方法，则抛出异常
 			else if (ambiguousConstructors != null && !mbd.isLenientConstructorResolution()) {
 				throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 						"Ambiguous constructor matches found on bean class [" + mbd.getBeanClassName() + "] " +
@@ -296,10 +334,19 @@ class ConstructorResolver {
 		return bw;
 	}
 
+	/**
+	 *  实例化对象
+	 * @param beanName
+	 * @param mbd
+	 * @param constructorToUse
+	 * @param argsToUse
+	 * @return
+	 */
 	private Object instantiate(
 			String beanName, RootBeanDefinition mbd, Constructor<?> constructorToUse, Object[] argsToUse) {
 
 		try {
+			// 拿到生成策略
 			InstantiationStrategy strategy = this.beanFactory.getInstantiationStrategy();
 			if (System.getSecurityManager() != null) {
 				return AccessController.doPrivileged((PrivilegedAction<Object>) () ->
@@ -674,6 +721,7 @@ class ConstructorResolver {
 
 		int minNrOfArgs = cargs.getArgumentCount();
 
+		// 循环构造方法的参数列表
 		for (Map.Entry<Integer, ConstructorArgumentValues.ValueHolder> entry : cargs.getIndexedArgumentValues().entrySet()) {
 			int index = entry.getKey();
 			if (index < 0) {
