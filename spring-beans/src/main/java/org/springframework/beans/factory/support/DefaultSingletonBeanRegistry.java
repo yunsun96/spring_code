@@ -274,6 +274,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 					// 创建完成之后去掉正在创建的标识
 					afterSingletonCreation(beanName);
 				}
+				// 如果是单例的则放入单例池中，在 InstantiationAwareBeanPostProcessor   postProcessBeforeInstantiation方法处理的bean最后也走到这里
 				if (newSingleton) {
 					addSingleton(beanName, singletonObject);
 				}

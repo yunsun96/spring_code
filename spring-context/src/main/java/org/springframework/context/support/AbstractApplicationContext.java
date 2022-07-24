@@ -539,6 +539,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				// 在spring中执行被注册到beanFactory的BeanFactoryPostProcessor
 				//设置自定义的BeanFactoryPostProcessor
 				// 这里都是进行beanFactory的创建，然后扫描配置类进行bd的装载
+				// 这个后置处理器都是解析注解，把类解析成beanDefinition，解析作用域，装配模型
 				invokeBeanFactoryPostProcessors(beanFactory);
 
 				// Register bean processors that intercept bean creation.

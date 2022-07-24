@@ -69,6 +69,9 @@ public interface InstantiationAwareBeanPostProcessor extends BeanPostProcessor {
 	 * @see #postProcessAfterInstantiation
 	 * @see org.springframework.beans.factory.support.AbstractBeanDefinition#getBeanClass()
 	 * @see org.springframework.beans.factory.support.AbstractBeanDefinition#getFactoryMethodName()
+	 * 	 * 如果返回null则走自动装配，默认的bean实例化过程
+	 * 	 * 如果返回对象，则直接返回，停止自动装配
+	 * 	 这里处理完之后其他方法不会执行，如果返回了一个对象，会执行 beanPostProcessor的 postProcessAfterInitialization 方法
 	 */
 	@Nullable
 	default Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) throws BeansException {
@@ -89,6 +92,7 @@ public interface InstantiationAwareBeanPostProcessor extends BeanPostProcessor {
 	 * instances being invoked on this bean instance.
 	 * @throws org.springframework.beans.BeansException in case of errors
 	 * @see #postProcessBeforeInstantiation
+	 * 	 * 是否需要填充属性 ,如果为false，@autowired 和@resource 等注解的属性不会赋值，会出现空指针
 	 */
 	default boolean postProcessAfterInstantiation(Object bean, String beanName) throws BeansException {
 		return true;

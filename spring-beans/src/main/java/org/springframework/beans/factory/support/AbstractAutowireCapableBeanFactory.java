@@ -471,6 +471,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	//---------------------------------------------------------------------
 
 	/**
+	 * 调用createBean的过程中处理了几次后置处理器
 	 * Central method of this class: creates a bean instance,
 	 * populates the bean instance, applies post-processors, etc.
 	 * @see #doCreateBean
@@ -503,9 +504,14 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		try {
+			// 第一次应用spring的后置处理器  InstantiationAwareBeanPostProcessor 方法
+			// @aspect注解的类需要添加，AbstractAutoProxyCreator.isInfrastructureClass 方法判断是否有aspect注解，有就不增强，否则返回空，等到beanPostProcessor 的后置方法进行处理
 			// Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
 			// 这里是用来在实例化前对bean的某些方法进行处理，而不去管其他的一些注入设置等属性的生成bean方法
 			// 如果不实现 spring默认返回一个空 InstantiationAwareBeanPostProcessorAdapter 这个抽象类
+			//  InstantiationAwareBeanPostProcessor 的使用场景是 一个类在初始化的时候，是否需要返回一个任意类型的对象，绕开spring的默认实例化初始化过程
+			// AOP 的 @EnableAspectJAutoProxy 注解会加入一个这个后置处理器的子类在这里进行判断是否需要增强，
+			// 当前类是否需要加入adviceMap中，如果不需要加入了后续就在增强的时候过滤这个map中的bean
 			Object bean = resolveBeforeInstantiation(beanName, mbdToUse);
 			if (bean != null) {
 				return bean;
@@ -578,6 +584,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		synchronized (mbd.postProcessingLock) {
 			if (!mbd.postProcessed) {
 				try {
+					// 第三次 调用后置处理器  缓存注解信息
 					applyMergedBeanDefinitionPostProcessors(mbd, beanType, beanName);
 				}
 				catch (Throwable ex) {
@@ -600,6 +607,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}
 			// 如果是初类  spring bean有三种状态
 			// 第一种刚刚new 出来的bean   第二种
+			// 第四次调用后置处理器 SmartInstantiationAwareBeanPostProcessor getEarlyBeanReference
+			// 得到一个提前暴露的对象
 			addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean));
 		}
 
@@ -609,6 +618,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			//设置属性
 			populateBean(beanName, mbd, instanceWrapper);
 			// 实例化bean，执行后置处理器 aop在这里实现的
+			// 后置处理器 beanPostProcessor  的实现类叫做 单纯的后置处理器，但是有接口可以继承 beanPostProcessor ，可以去扩展 beanPostProcessor
+			// 所以，单纯的beanPostProcessor实现类贯穿了整个springbean的 初始化过程，因为在初始化的时候处理的
+			// 但是BeanFactoryBeanPostProcessor 这个 beanPostProcessor 的实现类就是在初始化前实例化的过程中处理的，也叫后置处理器
 			exposedObject = initializeBean(beanName, exposedObject, mbd);
 		}
 		catch (Throwable ex) {
@@ -650,6 +662,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		// Register bean as disposable.
 		try {
+			// 第九次调用后置处理器  destroy
 			registerDisposableBeanIfNecessary(beanName, bean, mbd);
 		}
 		catch (BeanDefinitionValidationException ex) {
@@ -1128,11 +1141,15 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	@Nullable
 	protected Object resolveBeforeInstantiation(String beanName, RootBeanDefinition mbd) {
 		Object bean = null;
+		// 如果beforeInstantiationResolved 还没设置或者为false 说明还没有需要处理的bean
 		if (!Boolean.FALSE.equals(mbd.beforeInstantiationResolved)) {
 			// Make sure bean class is actually resolved at this point.
+			// 判断是否有注册过 InstantiationAwareBeanPostProcessors 类型的bean
 			if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
 				Class<?> targetType = determineTargetType(beanName, mbd);
 				if (targetType != null) {
+					// 如果有则通过拿到spring的所有后置处理器来判断是否有符合这个类型的处理器来处理这个bean
+					// InstantiationAwareBeanPostProcessor
 					bean = applyBeanPostProcessorsBeforeInstantiation(targetType, beanName);
 					if (bean != null) {
 						bean = applyBeanPostProcessorsAfterInitialization(bean, beanName);
@@ -1237,6 +1254,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// Candidate constructors for autowiring?
 		// 根据后置处理器决定返回哪些构造方法   调用有参的构造
 		//spring 判断是否是一个有参的构造方法，如果程序员定义了一个无参构造方法，那么spring当做默认的无参构造方法，就不特殊处理，直接走默认的
+		// 第二次处理beanPostProcessor 后置处理器 推断使用哪种构造方法生成bean ,如果有两个，则无法判断，返回空，走默认的，如果构造方法加了@AUTOWIRE 注解，一个就选这个，如果被AUTOWIRE 注解了多个则还是返回空
 		Constructor<?>[] ctors = determineConstructorsFromBeanPostProcessors(beanClass, beanName);
 		//  getResolvedAutowireMode()   自动装配模型
 		// spring 的装配模型有四种  AUTOWIRE_NO 默认的，为空但是使用的是bytype技术   AUTOWIRE_BY_TYPE  通过类型 AUTOWIRE_BY_NAME 通过名称  AUTOWIRE_CONSTRUCTOR 通过构造器  AUTOWIRE_AUTODETECT
@@ -1427,6 +1445,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// state of the bean before properties are set. This can be used, for example,
 		// to support styles of field injection.
 		// 借助后置处理器设置属性，主要是两种  CommonAnnotationBeanPostProcessor 和 AutowiredAnnotationBeanPostProcessor
+		// 第五次 调用后置处理器  InstantiationAwareBeanPostProcessor postProcessAfterInstantiation
+		//判断你的bean是否需要属性填充
 		if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
 
@@ -1466,6 +1486,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			if (pvs == null) {
 				pvs = mbd.getPropertyValues();
 			}
+			// 第六次执行后置处理器  InstantiationAwareBeanPostProcessor  postProcessProperties  属性填充
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
 				if (bp instanceof InstantiationAwareBeanPostProcessor) {
 					InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
@@ -1837,6 +1858,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		Object wrappedBean = bean;
 		if (mbd == null || !mbd.isSynthetic()) {
 			// 调用后置处理器的前置方法
+			// 第七次调用后置处理器  BeanPostProcessor  BeforeInitialization
 			wrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);
 		}
 
@@ -1853,6 +1875,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 		if (mbd == null || !mbd.isSynthetic()) {
 			// 执行后置处理器的后置方法
+			// 第八次掉用后置处理器  BeanPostProcessors AfterInitialization
 			wrappedBean = applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName);
 		}
 

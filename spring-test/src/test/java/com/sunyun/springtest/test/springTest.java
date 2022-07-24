@@ -6,6 +6,7 @@ import com.sunyun.springtest.config.AppConfig;
 import com.sunyun.springtest.config.systemEnvironment;
 import com.sunyun.springtest.impl.IndexImpl;
 import com.sunyun.springtest.impl.MyFactoryBean;
+import com.sunyun.springtest.service.IndexService;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 import java.util.ArrayList;
@@ -21,9 +22,9 @@ public class springTest {
 //		annotationConfigApplicationContext.addBeanFactoryPostProcessor(new ConfigurationBeanFactoryPostProcessIndexDao());
 		// 解析手动register进去的配置类以及spring自己的配置类
 		annotationConfigApplicationContext.refresh();
-		MyFactoryBean myFactoryBean= (MyFactoryBean) annotationConfigApplicationContext.getBean("MyFactoryBean");
-//		IndexImpl bean = annotationConfigApplicationContext.getBean(IndexImpl.class);
-//		bean.query();
+//		MyFactoryBean myFactoryBean= (MyFactoryBean) annotationConfigApplicationContext.getBean("MyFactoryBean");
+		IndexService bean = (IndexService) annotationConfigApplicationContext.getBean("indexImpl");
+		bean.query();
 	}
 
 	public static void add(ArrayList list){
